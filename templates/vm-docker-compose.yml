@@ -1,0 +1,14 @@
+docker-compose-deploy:
+  stage: deploy
+  environment:
+    name: "$ENVIRONMENT"
+    url: "$DOMAIN"
+  before_script:
+    - 'command -v ssh-agent >/dev/null || ( apk add --update openssh )'
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  script:
+    - ssh $SSH_USER@$VM_IPADDRESS -p $VM_PORT 'docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY && cd /dockers/"$APP" && docker-compose pull "$PROJECT" && docker-compose up --force-recreate -d "$PROJECT" && docker image prune -f'
